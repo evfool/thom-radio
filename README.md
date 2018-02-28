@@ -1,37 +1,26 @@
-## Welcome to GitHub Pages
+# Simple internet radio build
 
-You can use the [editor on GitHub](https://github.com/evfool/thom-radio/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+An internet radio build using the following software/hardware components:
+* [Raspberry PI model B](https://www.seeedstudio.com/Raspberry-Pi-Model-B-p-1634.html) as the "brain"
+* [DietPi](http://dietpi.com/) as the OS running on the pi
+* [mpd](https://www.musicpd.org/) as the music player
+* [push button](https://www.adafruit.com/product/1119) to interact with the player
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+The project will be accompanied by step-by-step build instructions, starting from the easy bare-bone internet radio to customizing both hardware and firmware.
 
-### Markdown
+Ultimate goal is to have it enclosed in a [Thomson TG784n router](https://images.duckduckgo.com/iu/?u=http%3A%2F%2Fwww.avanzada7.com%2Fen%2Fimagen-producto%2F1-tg784n.jpg&f=1) as a radio case, as unfortunately I couldn't find a way to flash OpenWRT or DD-WRT to that router, although it would've made the whole thing probably a lot easier.
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+#### Build 1 - basic software setup
+1. prepare sd card with DietPi
+1. install DietPi with
+  * mpd for music playback
+  * mpc for mpd control
+  * alsamixer for volume control
+  * wiringpi library for GPIO input/output
+1. add an internet radio station using mpc add ....
+1. play using mpc play
 
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/evfool/thom-radio/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+#### Build 2 - basic interaction using a pushbutton
+1. wire toggle button to pin 6 (GND) and pin 12 (GPIO18) of the rPi
+1. create controller python script to start/stop playback
+1. create systemd service to autostart controller script
