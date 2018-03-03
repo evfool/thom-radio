@@ -90,9 +90,6 @@ result jumpPrevious() {
   return proceed;
 }
 
-result alert(menuOut& o,idleEvent e);
-result doAlert(eventMask e, prompt &item);
-
 TOGGLE(backlightCtrl,setBacklight,"Light     : ",doNothing,noEvent,noStyle//,doExit,enterEvent,noStyle
   ,VALUE("x",LOW,doNothing,noEvent)
   ,VALUE("o",HIGH,doNothing,noEvent)
@@ -146,7 +143,6 @@ MENU(mainMenu,"Main menu",doNothing,noEvent,wrapStyle
   ,SUBMENU(musicMenu)
   ,SUBMENU(optionsMenu)
   ,SUBMENU(setMode)
-  ,OP("Alert test",doAlert,enterEvent)
   ,EXIT("<Back")
 );
 
