@@ -227,13 +227,17 @@ result idle(menuOut& o,idleEvent e) {
   return proceed;
 }
 
-void primaryButtonHandler() {
+bool isTooShort() {
   long now = millis();
   if (now - lastPress <= DEBOUNCE_DELAY) {
     lastPress = now;
-    return;
+    return true;
   }
-  lastPress = now;
+  return false;
+}
+void primaryButtonHandler() {
+  if (isTooShort()) return;
+  lastPress = millis();
   if (!menuMode) {
     playing = !playing;
     nav.idleOff();
@@ -243,12 +247,8 @@ void primaryButtonHandler() {
 }
 
 void secondaryButtonHandler() {
-  long now = millis();
-  if (now - lastPress <= DEBOUNCE_DELAY) {
-    lastPress = now;
-    return;
-  }
-  lastPress = now;
+  if (isTooShort()) return;
+  lastPress = millis();
   menuMode = true;
   nav.idleOff();
 }
