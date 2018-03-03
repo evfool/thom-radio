@@ -19,6 +19,9 @@ input: Encoder with switch + Serial + switch
 #include <menuIO/serialOut.h>
 #include <menuIO/adafruitGfxOut.h>
 #include <menuIO/serialIn.h>
+#include <ClickEncoder.h>
+#include <TimerOne.h>
+
 
 using namespace Menu;
 
@@ -46,13 +49,16 @@ Adafruit_PCD8544 gfx(GFX_DC,GFX_CS,GFX_RST);
 #define MUSIC 2
 
 // buttons software debounce delay
-#define DEBOUNCE_DELAY 200
+#define DEBOUNCE_DELAY 300
 #define BOOLEAN_TOGGLE(name,variable,label) result name() {Serial.print(label); Serial.println(variable?"on":"off");return proceed;}
 // time of last button press for debounce
+
 long lastPress = 0;
 
+
+
 // status variables
-int volume=60;
+int volume = 60, oldVolume = volume;
 int backlightCtrl=LOW;
 int modeCtrl = FAVOURITE_RADIO; // current mode
 bool playing = false; // paused or playing
@@ -64,6 +70,13 @@ bool stealth = false; // to turn of all leds
 BOOLEAN_TOGGLE(stealthToggled, stealth, "stealth:")
 bool menuMode = false; // whether we're in the menu or not
 
+#define STEPS 4
+
+ClickEncoder clickEnc(encA, encB, encBtn, STEPS);
+
+void timerIsr() {
+  clickEnc.service();
+}
 // callback for the volume changes
 result changeVolume() {
   Serial.print("volume:");
@@ -221,23 +234,24 @@ result idle(menuOut& o,idleEvent e) {
   else
     o.print(F("Paused..."));
   o.setCursor(0,1);
-  o.print(F("press [select]"));
+  o.print(F("Volume "));
+  o.print(volume);
   o.setCursor(0,2);
+  o.print(F("press [select]"));
+  o.setCursor(0,3);
   o.print(F("to continue"));
   return proceed;
 }
 
 bool isTooShort() {
   long now = millis();
-  if (now - lastPress <= DEBOUNCE_DELAY) {
-    lastPress = now;
-    return true;
-  }
-  return false;
+  long previous = lastPress;
+  lastPress = now;
+  return (now - previous <= DEBOUNCE_DELAY);
 }
+
 void primaryButtonHandler() {
   if (isTooShort()) return;
-  lastPress = millis();
   if (!menuMode) {
     playing = !playing;
     nav.idleOff();
@@ -248,9 +262,7 @@ void primaryButtonHandler() {
 
 void secondaryButtonHandler() {
   if (isTooShort()) return;
-  lastPress = millis();
   menuMode = true;
-  nav.idleOff();
 }
 
 void setup() {
@@ -280,22 +292,39 @@ void setup() {
   // additional interrupt-based handling for buttons on idle screen
   attachInterrupt(digitalPinToInterrupt(escBtn), primaryButtonHandler, FALLING);
   attachInterrupt(digitalPinToInterrupt(encBtn), secondaryButtonHandler, FALLING);
+
+  Timer1.initialize(1000);
+  Timer1.attachInterrupt(timerIsr);
+
+  clickEnc.setAccelerationEnabled(true);
+
 }
 
-
-
 void loop() {
-  if (menuMode) {
-    // only do input handling in case we're in the menu
-    nav.doInput();
+  // only do input handling in case we're in the menu
+  //menuMode = (nav.sleepTask == NULL);
     // in idle mode input is handled with interrupts
+  if (!menuMode) {
+    // update volume if encoder turned while idle
+    volume += 5 * clickEnc.getValue();
+    volume = constrain(volume, 0, 100);
+    if (volume != oldVolume) {
+      changeVolume();
+      oldVolume = volume;
+      nav.idleOff();
+      nav.idleOn(nav.idleTask);
+    }
+  } else {
+    nav.doInput();
   }
   if (nav.changed(0)) {//only draw if changed
+
     nav.doOutput();
     gfx.display();
   }
 
-  menuMode = (nav.sleepTask == NULL);
+  menuMode = nav.sleepTask == NULL;
   digitalWrite(BACKLIGHTPIN, (stealth  ? HIGH : backlightCtrl));
   delay(100);//simulate a delay when other tasks are done
+
 }
