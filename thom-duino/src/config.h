@@ -9,7 +9,7 @@
 #define GFX_RST 10
 #define BACKLIGHTPIN 7
 
-#define CONTRAST 60
+#define CONTRAST 100
 
 // rotary encoder pins
 #define encA    8
