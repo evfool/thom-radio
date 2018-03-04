@@ -13,9 +13,7 @@ input: Encoder with switch + Serial + switch
 #include <menuIO/encoderIn.h>
 #include <menuIO/keyIn.h>
 #include <menuIO/chainStream.h>
-#include <menuIO/serialOut.h>
 #include <menuIO/adafruitGfxOut.h>
-#include <menuIO/serialIn.h>
 #include <ClickEncoder.h>
 #include <TimerOne.h>
 
@@ -46,9 +44,7 @@ bool menuMode = false; // whether we're in the menu or not
 
 ClickEncoder clickEnc(encA, encB, encBtn, STEPS);
 
-void timerIsr() {
-  clickEnc.service();
-}
+
 // callback for the volume changes
 result changeVolume() {
   Serial.print("volume:");
@@ -89,7 +85,6 @@ TOGGLE(modeCtrl,setMode,"Mode: ",doNothing,noEvent,noStyle//,doExit,enterEvent,n
 TOGGLE(playing,playToggle,"", playToggled, enterEvent, noStyle
   ,VALUE("Play", false, doNothing,noEvent)
   ,VALUE("Pause", true, doNothing, noEvent)
-
 );
 
 TOGGLE(shuffle,shuffleToggle,"Shuffle   : ", shuffleToggled, enterEvent, noStyle
@@ -115,7 +110,7 @@ MENU(musicMenu, "Music      +", doNothing, noEvent, wrapStyle
 );
 
 MENU(optionsMenu, "Options    +", doNothing, noEvent, wrapStyle
-  ,FIELD(volume,"Volume","%",0,100,5,1,changeVolume,enterEvent,noStyle)
+  //,FIELD(volume,"Volume","%",0,100,5,1,changeVolume,enterEvent,noStyle)
   ,SUBMENU(setBacklight)
   ,SUBMENU(shuffleToggle)
   ,SUBMENU(repeatToggle)
@@ -150,37 +145,26 @@ MENU_OUTPUTS(out,MAX_DEPTH
 
 NAVROOT(nav,mainMenu,MAX_DEPTH,in,out);
 
-//initializing output and menu nav without macros
-/*const panel default_serial_panels[] MEMMODE={{0,0,40,10}};
-navNode* default_serial_nodes[sizeof(default_serial_panels)/sizeof(panel)];
-panelsList default_serial_panel_list(
-  default_serial_panels,
-  default_serial_nodes,
-  sizeof(default_serial_panels)/sizeof(panel)
-);
+void timerIsr() {
+  clickEnc.service();
+}
 
-//define output device
-idx_t serialTops[MAX_DEPTH]={0};
-serialOut outSerial(*(Print*)&Serial,serialTops);
-
-//define outputs controller
-idx_t gfx_tops[MAX_DEPTH];
-PANELS(gfxPanels,{0,0,gfxWidth/fontX,gfxHeight/fontY});
-adaGfxOut adaOut(gfx,colors,gfx_tops,gfxPanels);
-
-menuOut* const outputs[] MEMMODE={&outSerial,&adaOut};//list of output devices
-outputsList out(outputs,2);//outputs list controller
-
-//define input device
-serialIn serial(Serial);
-
-//define navigation root and aux objects
-navNode nav_cursors[MAX_DEPTH];//aux objects to control each level of navigation
-navRoot nav(mainMenu, nav_cursors, MAX_DEPTH, serial, out);*/
-
+void setMenuMode(bool yes) {
+  menuMode = yes;
+  if (yes)
+    Timer1.detachInterrupt();
+  else
+    Timer1.attachInterrupt(timerIsr);
+}
 //when menu is suspended
 result idle(menuOut& o,idleEvent e) {
-  menuMode = false;
+
+  if (e == idleEnd){
+    setMenuMode(true);
+    return proceed;
+  }
+
+  setMenuMode(false);
   o.setCursor(0,0);
   if (playing)
     o.print(F("Playing..."));
@@ -203,25 +187,29 @@ bool isTooShort() {
   return (now - previous <= DEBOUNCE_DELAY);
 }
 
+// play/pause btn (escBtn)
 void primaryButtonHandler() {
   if (isTooShort()) return;
   if (!menuMode) {
     playing = !playing;
-    nav.idleOff();
+    //nav.idleOff();
     nav.idleOn(nav.idleTask);
     playToggled();
   }
 }
 
+// menu button (enterBtn) - switch of rotary encoder
 void secondaryButtonHandler() {
-  if (isTooShort()) return;
-  menuMode = true;
+  //if (isTooShort()) return;
+  setMenuMode(true);
 }
+
 
 void setup() {
   pinMode(BACKLIGHTPIN,OUTPUT);
   pinMode(escBtn,INPUT_PULLUP);
   pinMode(encBtn,INPUT_PULLUP);
+
   Serial.begin(115200);
   while(!Serial);
   Serial.println(F("menu"));
@@ -249,22 +237,62 @@ void setup() {
   Timer1.initialize(1000);
   Timer1.attachInterrupt(timerIsr);
 
+
   clickEnc.setAccelerationEnabled(true);
 
 }
 
+int readline(int readch, char *buffer, int len)
+{
+  static int pos = 0;
+  int rpos;
+
+  if (readch > 0) {
+    switch (readch) {
+      case '\n': // Ignore new-lines
+        break;
+      case '\r': // Return on CR
+        rpos = pos;
+        pos = 0;  // Reset position index ready for next time
+        return rpos;
+      default:
+        if (pos < len-1) {
+          buffer[pos++] = readch;
+          buffer[pos] = 0;
+          if (strcmp(buffer, "volume:") == 0) {
+            Serial.println("Volume command");
+          }
+        }
+    }
+  }
+  // No end of line has been found, so return -1.
+  return -1;
+}
+
+void handleSerialCommand(String buffer) {
+  /*Serial.print("You entered >");
+  Serial.print(buffer);
+  Serial.println("<");*/
+
+}
+
 void loop() {
+  static char buffer[80];
+  if (readline(Serial.read(), buffer, 80) > 0) {
+    handleSerialCommand(buffer);
+  }
   // only do input handling in case we're in the menu
-  //menuMode = (nav.sleepTask == NULL);
-    // in idle mode input is handled with interrupts
+  // in idle mode input is handled with interrupts
   if (!menuMode) {
+
     // update volume if encoder turned while idle
     volume += 5 * clickEnc.getValue();
     volume = constrain(volume, 0, 100);
     if (volume != oldVolume) {
       changeVolume();
       oldVolume = volume;
-      nav.idleOff();
+
+      //nav.idleOff();
       nav.idleOn(nav.idleTask);
     }
   } else {
@@ -276,7 +304,7 @@ void loop() {
     gfx.display();
   }
 
-  menuMode = nav.sleepTask == NULL;
+
   digitalWrite(BACKLIGHTPIN, (stealth  ? HIGH : backlightCtrl));
   delay(100);//simulate a delay when other tasks are done
 
