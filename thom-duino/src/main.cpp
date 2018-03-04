@@ -259,9 +259,6 @@ int readline(int readch, char *buffer, int len)
         if (pos < len-1) {
           buffer[pos++] = readch;
           buffer[pos] = 0;
-          if (strcmp(buffer, "volume:") == 0) {
-            Serial.println("Volume command");
-          }
         }
     }
   }
@@ -273,7 +270,10 @@ void handleSerialCommand(String buffer) {
   /*Serial.print("You entered >");
   Serial.print(buffer);
   Serial.println("<");*/
-
+  if (buffer.startsWith("volume:")) {
+    oldVolume = volume;
+    volume = buffer.substring(buffer.indexOf(':')+1).toInt();
+  }
 }
 
 void loop() {
