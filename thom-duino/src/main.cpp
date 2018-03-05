@@ -39,6 +39,8 @@ BOOLEAN_TOGGLE(repeatToggled, repeat, "repeat:")
 bool stealth = false; // to turn of all leds
 BOOLEAN_TOGGLE(stealthToggled, stealth, "stealth:")
 bool menuMode = false; // whether we're in the menu or not
+char nowPlaying[120] = "not playing";
+
 
 #define STEPS 4
 
@@ -136,10 +138,12 @@ keyIn<2> encButton(encBtn_map);//2 is the number of keys
 //serialIn serial(Serial);
 MENU_INPUTS(in,&encStream,&encButton);//,&serial);
 
+#define CHARS_X gfxWidth/fontX
+#define LINES_Y gfxHeight/fontY
 #define MAX_DEPTH 2
 #define textScale 1
 MENU_OUTPUTS(out,MAX_DEPTH
-  ,ADAGFX_OUT(gfx,colors,fontX,fontY,{0,0,gfxWidth/fontX,gfxHeight/fontY})
+  ,ADAGFX_OUT(gfx,colors,fontX,fontY,{0,0,CHARS_X,LINES_Y})
   ,NONE//,SERIAL_OUT(Serial)
 );
 
@@ -167,16 +171,13 @@ result idle(menuOut& o,idleEvent e) {
   setMenuMode(false);
   o.setCursor(0,0);
   if (playing)
-    o.print(F("Playing..."));
+    o.print(F("Playing... "));
   else
-    o.print(F("Paused..."));
-  o.setCursor(0,1);
-  o.print(F("Volume "));
+    o.print(F("Paused...  "));
   o.print(volume);
-  o.setCursor(0,2);
-  o.print(F("press [select]"));
-  o.setCursor(0,3);
-  o.print(F("to continue"));
+  o.setCursor(0,1);
+  //Serial.println(nowPlaying);
+  o.print(nowPlaying);
   return proceed;
 }
 
@@ -242,30 +243,6 @@ void setup() {
 
 }
 
-int readline(int readch, char *buffer, int len)
-{
-  static int pos = 0;
-  int rpos;
-
-  if (readch > 0) {
-    switch (readch) {
-      case '\n': // Ignore new-lines
-        break;
-      case '\r': // Return on CR
-        rpos = pos;
-        pos = 0;  // Reset position index ready for next time
-        return rpos;
-      default:
-        if (pos < len-1) {
-          buffer[pos++] = readch;
-          buffer[pos] = 0;
-        }
-    }
-  }
-  // No end of line has been found, so return -1.
-  return -1;
-}
-
 void handleSerialCommand(String buffer) {
   /*Serial.print("You entered >");
   Serial.print(buffer);
@@ -273,14 +250,20 @@ void handleSerialCommand(String buffer) {
   if (buffer.startsWith("volume:")) {
     oldVolume = volume;
     volume = buffer.substring(buffer.indexOf(':')+1).toInt();
+    nav.idleOn(nav.idleTask);
+  } else if (buffer.startsWith("playing:")) {
+    String current = buffer.substring(buffer.indexOf(':')+1);
+    current.toCharArray(nowPlaying, min(current.length()+1,80));
+    nav.idleOn(nav.idleTask);
   }
 }
 
 void loop() {
-  static char buffer[80];
-  if (readline(Serial.read(), buffer, 80) > 0) {
-    handleSerialCommand(buffer);
+  if (Serial.available()) {
+    handleSerialCommand(Serial.readStringUntil('\r'));
+    if (Serial.peek() == '\n') Serial.read();
   }
+
   // only do input handling in case we're in the menu
   // in idle mode input is handled with interrupts
   if (!menuMode) {
