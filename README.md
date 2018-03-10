@@ -13,15 +13,15 @@ Ultimate goal is to have it enclosed in a [Thomson TG784n router](https://images
 ### Build 1 - basic software setup
 This version will only be controlled via SSH access, so in order to start/stop/change the music playing, you will have to log in to the Raspberry from a remote computer.
 1. prepare sd card with DietPi
-1. install DietPi with
+2. install DietPi with
   * mpd for music playback
   * mpc for mpd control
   * alsamixer for volume control
-  * wiringpi library for GPIO input/output
-1. add an internet radio station using mpc add ....
-1. play using mpc play
+ * wiringpi library for GPIO input/output
+3. add an internet radio station using mpc add ....
+4. play using mpc play
 
-### Build 2 - controlling from a phone
+### Build 2 - controlling from a smartphone
 To add some more control over what to play, let's make the radio controllable via a smartphone.
 1. install Node.js and git client using dietpi-software
 1. install MPD.FM according to the instructions
