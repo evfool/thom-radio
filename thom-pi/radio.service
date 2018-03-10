@@ -1,0 +1,13 @@
+[Unit]
+Description=Thompi Radio
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/srv-mpd-fm/thompi/radio.py
+User=root
+WorkingDirectory=/home/srv-mpd-fm/thompi/
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
